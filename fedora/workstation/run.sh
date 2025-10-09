@@ -372,11 +372,9 @@
     pip install --upgrade pip
    }
   dnf_pkg_func(){
-    dnf makecache
     dnf -C       install -y --skip-unavailable --skip-broken --allowerasing $@
    }
   dnf_grp_func(){
-    dnf makecache
     dnf -C group install -y --skip-unavailable --skip-broken --allowerasing $@
    }
   define_packages(){
@@ -428,11 +426,13 @@
       MMEDIA_EXTRA[1]="simplescreenrecorder easytag openshot mplayer sound-juicer rhythmbox gaupol " 
    }
   install_packages(){
+    dnf clean all
+    dnf makecache
     dnf_pkg_func ${SRV_BASE[@]}
-    dnf_grp_func ${SRV_BASE_GRP[@]}
     dnf_pkg_func ${GUI_BASE[@]}
-    dnf_grp_func ${GUI_GRP_BASE[@]}
     dnf_pkg_func ${MMEDIA_BASE[@]} $MMEXCLUDES
+    dnf_grp_func ${SRV_BASE_GRP[@]}
+    dnf_grp_func ${GUI_GRP_BASE[@]}
     dnf_grp_func ${MMGRPPKG[@]}
     # dnf install -y \
       #   $(curl -s https://api.github.com/repos/VSCodium/vscodium/releases/latest |\
