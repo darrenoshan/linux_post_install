@@ -372,10 +372,10 @@
     pip install --upgrade pip
    }
   dnf_pkg_func(){
-    dnf -C       install -y --skip-unavailable --skip-broken --allowerasing $@
+    dnf       install -y --skip-unavailable --skip-broken --allowerasing $@
    }
   dnf_grp_func(){
-    dnf -C group install -y --skip-unavailable --skip-broken --allowerasing $@
+    dnf group install -y --skip-unavailable --skip-broken --allowerasing $@
    }
   define_packages(){
     # -- BASE
@@ -558,3 +558,4 @@
     kvmtools
   # PHASE 3
     post_script
+#
