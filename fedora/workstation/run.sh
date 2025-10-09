@@ -186,13 +186,13 @@
   set_proxy(){
     COUNTRY=`curl -s ifconfig.io/country_code`
     if [ "$COUNTRY" == "IR" ] ; then
-    echo -e '\nproxy=http://ir.linuxmirrors.ir:8080\n' >> /etc/dnf/dnf.conf
-    mkdir -p /etc/systemd/system/docker.service.d
-    FILE=/etc/systemd/system/docker.service.d/00-proxy.conf
-    echo '[Service] ' > $FILE
-    echo 'Environment="HTTP_PROXY=http://ir.linuxmirrors.ir:8080" ' >> $FILE
-    echo 'Environment="HTTPS_PROXY=http://ir.linuxmirrors.ir:8080" ' >> $FILE
-    echo 'Environment="NO_PROXY=localhost,127.0.0.1,registry.lab.loval,.corp" ' >> $FILE
+      echo -e '\nproxy=http://ir.linuxmirrors.ir:8080\n' >> /etc/dnf/dnf.conf
+      mkdir -p /etc/systemd/system/docker.service.d
+      FILE=/etc/systemd/system/docker.service.d/00-proxy.conf
+      echo '[Service] ' > $FILE
+      echo 'Environment="HTTP_PROXY=http://ir.linuxmirrors.ir:8080" ' >> $FILE
+      echo 'Environment="HTTPS_PROXY=http://ir.linuxmirrors.ir:8080" ' >> $FILE
+      echo 'Environment="NO_PROXY=localhost,127.0.0.1,registry.lab.loval,.corp" ' >> $FILE
     fi
    }
   base_config(){
@@ -367,7 +367,7 @@
     fwupdmgr get-updates
     fwupdmgr update -y
     }
-    update_sw(){
+  update_sw(){
     dnf update --best --allowerasing -y --refresh
     pip install --upgrade pip
    }
@@ -389,7 +389,7 @@
       DOCKER[1]="buildah skopeo toolbox cri-tools lxc lxc-templates colin openscap-containers"
       SYSADMIN_GRP[0]="container-management mysql"
       KUBER[0]="kubernetes-client helm "
-      GUI_BASE[0]="nautilus file-roller-nautilus gnome-terminal-nautilus tilix-nautilus chromium codium dconf dconf-editor engrampa evince fedora-workstation-repositories filezilla firefox geany gedit google-chrome-stable gparted ghostscript"
+      GUI_BASE[0]="nautilus file-roller-nautilus gnome-terminal-nautilus tilix-nautilus chromium dconf dconf-editor engrampa evince fedora-workstation-repositories filezilla firefox geany gedit google-chrome-stable gparted ghostscript"
       GUI_BASE[1]="gnome-extensions-app gnome-shell-extension-appindicator gnome-shell-extension-apps-menu gnome-shell-extension-dash-to-dock gnome-shell-extension-dash-to-panel gnome-shell-extension-just-perfection "
       GUI_BASE[2]="gnome-terminal gnome-tweaks tilix mate-terminal tigervnc tor torbrowser-launcher qbittorrent octave "
       GUI_BASE[3]="minder leafpad nomacs openvpn putty remmina remmina-plugins-rdp telegram-desktop virt-manager virt-manager-common obs-studio "
@@ -433,10 +433,9 @@
     dnf_pkg_func ${MMEDIA_BASE[@]} $MMEXCLUDES
     dnf_grp_func ${SRV_BASE_GRP[@]}
     dnf_grp_func ${GUI_GRP_BASE[@]}
-    dnf_grp_func ${MMGRPPKG[@]}
-    # dnf install -y \
-      #   $(curl -s https://api.github.com/repos/VSCodium/vscodium/releases/latest |\
-      #   grep "browser_download_url"   | cut -d '"' -f 4   | grep "x86_64.rpm"   | head -n 1)
+    dnf install -y \
+        $(curl -s https://api.github.com/repos/VSCodium/vscodium/releases/latest |\
+        grep "browser_download_url"   | cut -d '"' -f 4   | grep "x86_64.rpm"   | head -n 1)
    }
   admintools(){
     # installing dbeaver-ce
