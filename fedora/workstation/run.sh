@@ -201,6 +201,23 @@
       sed -i -e "s/^SELINUX=.*/SELINUX=disabled/" /etc/selinux/config ; setenforce 0
     fi
     BASHCONFIG_RAW='
+    COLF0=$(tput setaf 0)
+    COLF1=$(tput setaf 1)
+    COLF2=$(tput setaf 2)
+    COLF3=$(tput setaf 3)
+    COLF4=$(tput setaf 4)
+    COLF5=$(tput setaf 5)
+    COLF6=$(tput setaf 6)
+    COLF7=$(tput setaf 7)
+    COLB0=$(tput setab 0)
+    COLB1=$(tput setab 1)
+    COLB2=$(tput setab 2)
+    COLB3=$(tput setab 3)
+    COLB4=$(tput setab 4)
+    COLB5=$(tput setab 5)
+    COLB6=$(tput setab 6)
+    COLB7=$(tput setab 7)
+    COLRST=$(tput sgr0)
     export SYSTEMD_PAGER=
     export HISTCONTROL=ignoreboth
     export HISTTIMEFORMAT="%Y/%m/%d %H:%M:%S "

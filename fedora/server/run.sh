@@ -21,7 +21,6 @@
     export BCyan='\033[1;36m'        # Cyan
     export BWhite='\033[1;37m'       # White
 #
-
 step1(){
     sudo cp /etc/dnf/dnf.conf "/etc/dnf/dnf.conf.`date +%Y_%m_%d_%H_%M_%S`"
     sudo dnf update --best --allowerasing -y --refresh >/dev/null
@@ -62,9 +61,36 @@ step2(){
     wireguard-tools wireshark-cli tcpdump telnet tmux traceroute unzip  \
      hping3 GeoIP bwm-ng jcal jdupes mmv mysql mycli \
     netstat-nat pwgen unar unrar vnstat plocate
-
 }
 step3(){
+    mkdir -p /etc/docker /usr/local/lib/docker/cli-plugins 
+    dnf install -y --best --skip-unavailable --skip-broken --allowerasing \
+    moby-engine sen podman podman-compose podman-tui \
+    buildah skopeo toolbox cri-tools lxc lxc-templates colin openscap-containers \
+    kubernetes-client helm
+    dnf group install --with-optional -y --skip-unavailable --skip-broken --best --allowerasing \
+    container-management mysql container-management mysql
+        mkdir -p /etc/docker /usr/local/lib/docker/cli-plugins 
+    echo -e "{\n\"bip\" : \"192.168.255.1/24\",\n\"data-root\": \"/data/docker-data/\"\n}\n" > /etc/docker/daemon.json
+    # installing docker-compose
+    if [ ! -f /usr/local/lib/docker/cli-plugins/docker-compose ] ; then
+      # https://github.com/docker/compose/releases/latest
+      GH_DP_COMPOSE=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" | jq -r '.assets[] | "\(.name) \(.browser_download_url)"')
+      DLND_URL=$(echo "$GH_DP_COMPOSE" | grep "linux-x86_64 " | awk '{print $2}')
+      curl -sSL "$DLND_URL" -o /usr/local/lib/docker/cli-plugins/docker-compose
+      chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+    fi
+    # installing docker-buildx
+    if [ ! -f /usr/local/lib/docker/cli-plugins/docker-buildx ] ; then
+      # https://github.com/docker/buildx/releases/latest
+      GH_DP_COMPOSE=$(curl -s "https://api.github.com/repos/docker/buildx/releases/latest" | jq -r '.assets[] | "\(.name) \(.browser_download_url)"')
+      DLND_URL=$(echo "$GH_DP_COMPOSE" | grep "linux-amd64 " | awk '{print $2}')
+      curl -sSL $DLND_URL -o /usr/local/lib/docker/cli-plugins/docker-buildx
+      chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+    fi
+
+}
+step4(){
     sudo sed 's/^# %wheel/%wheel/' -i /etc/sudoers
     sudo timedatectl set-timezone UTC
     timedatectl set-ntp true
@@ -74,21 +100,27 @@ step3(){
     for SRV in $SERVICES  ; do sudo systemctl restart  &> /dev/null  $SRV ; done
     rpm --rebuilddb
 }
-step4(){
-    mkdir -p /etc/docker /usr/local/lib/docker/cli-plugins 
-    dnf install -y --best --skip-unavailable --skip-broken --allowerasing \
-    moby-engine sen podman podman-compose podman-tui \
-    buildah skopeo toolbox cri-tools lxc lxc-templates colin openscap-containers \
-    kubernetes-client helm
-    dnf group install --with-optional -y --skip-unavailable --skip-broken --best --allowerasing \
-    container-management mysql container-management mysql
-}
-
-
 step5(){
 
     sudo mkdir -p /root/.bashrc.d/ /root/.ssh/
     echo '
+    COLF0=$(tput setaf 0)
+    COLF1=$(tput setaf 1)
+    COLF2=$(tput setaf 2)
+    COLF3=$(tput setaf 3)
+    COLF4=$(tput setaf 4)
+    COLF5=$(tput setaf 5)
+    COLF6=$(tput setaf 6)
+    COLF7=$(tput setaf 7)
+    COLB0=$(tput setab 0)
+    COLB1=$(tput setab 1)
+    COLB2=$(tput setab 2)
+    COLB3=$(tput setab 3)
+    COLB4=$(tput setab 4)
+    COLB5=$(tput setab 5)
+    COLB6=$(tput setab 6)
+    COLB7=$(tput setab 7)
+    COLRST=$(tput sgr0)
     export SYSTEMD_PAGER=
     export HISTCONTROL=ignoreboth
     export HISTTIMEFORMAT="%Y/%m/%d %H:%M:%S "
@@ -155,7 +187,6 @@ step5(){
     echo '. /root/.bashrc.d/mybash' | sudo tee /root/.bashrc >/dev/null
 
 }
-
 echo -ne "$BBlue"
 step1
 step2
