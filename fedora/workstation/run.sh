@@ -15,7 +15,7 @@
   #  exec > >(tee -a "$LOGFILE") 2>&1
 
   AGREE=N
-  THEUSER="darren"
+  THEUSER="$USER"
   DISABLESELINUX=1
   EXTRA=0
   GUI=1
@@ -279,6 +279,7 @@
     BASHCONFIG=`echo "$BASHCONFIG_RAW" | sed "s/^[[:space:]]*//g"`
     mkdir -p /root/.bashrc.d/
     echo "$BASHCONFIG" | sed "s/^[[:space:]]*//g" > /root/.bashrc.d/mybash
+    echo '. /root/.bashrc.d/mybash' | sudo tee /root/.bashrc >/dev/null
     if [ "$GUI" == "1" ] ; then
       mkdir -p /home/$THEUSER/.bashrc.d/
       echo "$BASHCONFIG" | sed "s/^[[:space:]]*//g" > /home/$THEUSER/.bashrc.d/mybash
