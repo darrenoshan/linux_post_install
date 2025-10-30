@@ -15,7 +15,7 @@
   #  exec > >(tee -a "$LOGFILE") 2>&1
 
   AGREE=N
-  THEUSER="$USER"
+  THEUSER="$USERNAME"
   DISABLESELINUX=1
   EXTRA=0
   GUI=1
@@ -281,8 +281,10 @@
     echo "$BASHCONFIG" | sed "s/^[[:space:]]*//g" > /root/.bashrc.d/mybash
     echo '. /root/.bashrc.d/mybash' | sudo tee /root/.bashrc >/dev/null
     if [ "$GUI" == "1" ] ; then
+      if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
       mkdir -p /home/$THEUSER/.bashrc.d/
       echo "$BASHCONFIG" | sed "s/^[[:space:]]*//g" > /home/$THEUSER/.bashrc.d/mybash
+      fi
     fi
     ### DNS CONFIG
     DNFCONF_RAW='[main]
@@ -356,19 +358,16 @@
     '
     GROMITCFG=`echo "$GROMITCFG_RAW" | sed "s/^[[:space:]]*//g"`
     if [ "$GUI" == "1" ] ; then
-      echo 'Sample Text' > /home/$THEUSER/Templates/new_text.txt
-      echo '#!/usr/bin/env bash' > /home/$THEUSER/Templates/new_bash_script.sh
-      echo '#!/usr/bin/env python3' > /home/$THEUSER/Templates/new_python_script.py
-      chmod +x /home/$THEUSER/Templates/new_python_script.py /home/$THEUSER/Templates/new_bash_script.sh
-      chown "$THEUSER:$THEUSER" -R /home/$THEUSER/
       # config ssh client sample
-      mkdir -p "/home/$THEUSER/.ssh/"
-      echo "$SSH_SAMPLE" > "/home/$THEUSER/.ssh/ssh.sample.config"
-      # configure network manager 
-      mkdir -p /etc/NetworkManager/conf.d/
-      echo "$NMCONNECT" > /etc/NetworkManager/conf.d/20-connectivity.conf
-      # config gromit
-      echo "$GROMITCFG" > /home/$THEUSER/.config/gromit-mpx.cfg
+      if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
+        mkdir -p "/home/$THEUSER/.ssh/"
+        echo "$SSH_SAMPLE" > "/home/$THEUSER/.ssh/ssh.sample.config"
+        # configure network manager 
+        mkdir -p /etc/NetworkManager/conf.d/
+        echo "$NMCONNECT" > /etc/NetworkManager/conf.d/20-connectivity.conf
+        # config gromit
+        echo "$GROMITCFG" > /home/$THEUSER/.config/gromit-mpx.cfg
+      fi
     fi
    }
   pre_install(){
@@ -390,10 +389,10 @@
     pip install --upgrade pip
    }
   dnf_pkg_func(){
-    dnf       install -y --skip-unavailable --skip-broken --allowerasing $@
+    dnf       install -y -q --skip-unavailable --skip-broken --allowerasing $@
    }
   dnf_grp_func(){
-    dnf group install -y --skip-unavailable --skip-broken --allowerasing $@
+    dnf group install -y -q --skip-unavailable --skip-broken --allowerasing $@
    }
   define_packages(){
     # -- BASE
@@ -416,13 +415,13 @@
       GUI_BASE[6]="NetworkManager-ovs NetworkManager-ppp NetworkManager-pptp NetworkManager-pptp-gnome NetworkManager-ssh NetworkManager-ssh-gnome NetworkManager-sstp"
       GUI_BASE[7]="NetworkManager-sstp-gnome NetworkManager-tui NetworkManager-wifi NetworkManager-wwan network-manager-applet nm-connection-editor"
       GUI_BASE[8]="wine wine-common wine-mono winetricks wireshark xed xfce4-taskmanager xfce4-terminal xreader youtube-dl cloud-init libheif-freeworld"
-      GUI_BASE[9]="adwaita-icon-theme la-capitaine-icon-theme paper-icon-theme luv-icon-theme We10X-icon-theme flatseal clutter "
+      GUI_BASE[9]="adwaita-icon-theme paper-icon-theme luv-icon-theme We10X-icon-theme flatseal clutter "
       GUI_BASE[10]="overpass-fonts overpass-mono-fonts vazirmatn-fonts vazirmatn-vf-fonts liberation-fonts liberation-fonts-common "
       GUI_BASE[11]="rust cargo openssl-devel video-downloader gimp gromit-mpx kdenlive thunderbird gh "
       GUI_BASE[12]="fastfetch persepolis remmina-plugins-* terminator xbacklight xournal"
       GUI_GRP_BASE[0]="vlc libreoffice "
       MMEDIA_BASE[0]="ffmpeg HandBrake-gui soundconverter cozy celluloid audacious "
-      MMEDIA_BASE[1]="vlc vlc-plugin-crystalhd vlc-plugins-base vlc-plugin-ffmpeg vlc-plugin-pipewire libavcodec-freeworld "
+      MMEDIA_BASE[1]="vlc vlc-plugins-base vlc-plugin-ffmpeg vlc-plugin-pipewire libavcodec-freeworld "
       MMEDIA_EXCLUDES=" --exclude=gstreamer1-plugins-bad-free-devel --exclude=lame-devel "
       MMEDIA_IGNORE="pulseaudio pavucontrol pulseaudio pulseaudio-utils vlc-plugin-pulseaudio "
       MMEDIA_OLD="pipewire pipewire-alsa pipewire-pulseaudio pipewire-gstreamer pipewire-libs pipewire-utils "
@@ -481,12 +480,14 @@
       chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
     fi
     # configuring docker kuber
+      if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
       usermod -a -G docker "$THEUSER"
       mkdir -p /home/$THEUSER/.docker
       echo '{"psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Status}}\\t{{.Names}}"}' > /home/$THEUSER/.docker/config.json
       kubectl completion bash > /etc/bash_completion.d/kubectl 
       mkdir -p "/home/$THEUSER/.kube/"
       touch "/home/$THEUSER/.kube/config"
+      fi
     # configuring docker kuber for root user
       mkdir -p /root/.docker
       echo '{"psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Status}}\\t{{.Names}}"}' > /root/.docker/config.json
@@ -518,28 +519,44 @@
       echo -e 'user = "root"' >> /etc/libvirt/qemu.conf
       echo -e 'group = "root"' >> /etc/libvirt/qemu.conf
     fi
-    usermod -a -G libvirt "$THEUSER"
+    if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
+      usermod -a -G libvirt "$THEUSER"
+    fi
     NETS=`virsh net-list`
-    if [ -f ./config_files/virt-net-default-isolate.xml ] ; then
-      if [ "`echo "$NETS" | grep -ic Default-Isolate`" -lt "1" ] ; then
+    if [ "`echo "$NETS" | grep -ic Default-Isolate`" -lt "1" ] ; then
+      echo '<network>' > /tmp/virtnet1.xml
+      echo '<name>Default-Isolate</name>' >> /tmp/virtnet1.xml
+      echo '<domain name='Isolate'/>' >> /tmp/virtnet1.xml
+      echo '<ip address='10.124.1.2' netmask='255.255.255.0'>' >> /tmp/virtnet1.xml
+      echo '</ip>' >> /tmp/virtnet1.xml
+      echo '</network>' >> /tmp/virtnet1.xml
       virsh net-define --file "./config_files/virt-net-default-isolate.xml"
-      fi
+      virsh net-autostart --network Default-Isolate
+      virsh net-start --network Default-Isolate
     fi
-    if [ -f ./config_files/virt-net-default-nat.xml ] ; then
-      if [ "`echo "$NETS" | grep -ic Default-NAT`" -lt "1" ] ; then
-      virsh net-define --file ./config_files/virt-net-default-nat.xml
-      fi
+    if [ "`echo "$NETS" | grep -ic Default-NAT`" -lt "1" ] ; then
+      echo '<network> ' > /tmp/virtnet2.xml
+      echo '  <name>network</name> ' >> /tmp/virtnet2.xml
+      echo '  <forward mode="nat"/> ' >> /tmp/virtnet2.xml
+      echo '  <domain name='Default-NAT'/> ' >> /tmp/virtnet2.xml
+      echo '  <ip address='10.25.1.2' netmask='255.255.255.0'> ' >> /tmp/virtnet2.xml
+      echo '    <dhcp> ' >> /tmp/virtnet2.xml
+      echo '      <range start='10.25.1.128' end='10.25.1.254'/> ' >> /tmp/virtnet2.xml
+      echo '    </dhcp> ' >> /tmp/virtnet2.xml
+      echo '  </ip> ' >> /tmp/virtnet2.xml
+      echo '</network> ' >> /tmp/virtnet2.xml
+      virsh net-define --file /tmp/virtnet2.xml
+      virsh net-autostart --network Default-NAT
+      virsh net-start --network Default-NAT
     fi
-    virsh net-autostart --network Default-Isolate
-    virsh net-start --network Default-Isolate
-    virsh net-autostart --network Default-NAT
-    virsh net-start --network Default-NAT
    }
   post_script(){
+    if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
     rm -rf "/home/$THEUSER/.config/autostart/"
     rm -rf  /home/$THEUSER/.local/state/wireplumber/
     usermod -a -G wireshark "$THEUSER"
     chown -R "$THEUSER:$THEUSER" `su - $THEUSER -c 'printenv HOME'`
+    fi
     # timedatectl set-timezone Asia/Tehran
       timedatectl set-timezone UTC
       git config --global init.defaultBranch main
