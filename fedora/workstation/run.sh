@@ -386,6 +386,7 @@
     }
   update_sw(){
     dnf update --best --allowerasing -y --refresh
+    dnf install -y -q pip python3-pip
     pip install --upgrade pip
    }
   dnf_pkg_func(){
