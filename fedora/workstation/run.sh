@@ -14,13 +14,9 @@
   touch "$LOGFILE"
   #  exec > >(tee -a "$LOGFILE") 2>&1
 
-  AGREE=N
   THEUSER="$USERNAME"
   DISABLESELINUX=1
-  EXTRA=0
   GUI=1
-  MMEDIA=1
-  DESKENV=0
 
 ############################# General Functions
   define_bash_color(){
@@ -172,16 +168,8 @@
   define_repo_gui(){
     dnf install fedora-workstation-repositories -y
     dnf config-manager setopt google-chrome.enabled=1
-    # setting up vscodium
-    FILE="/etc/yum.repos.d/vscodium.repo"
-    echo '[gitlab.com_paulcarroty_vscodium_repo] ' > $FILE
-    echo 'name=download.vscodium.com ' >> $FILE
-    echo 'baseurl=https://download.vscodium.com/rpms/ ' >> $FILE
-    echo 'enabled=1 '  >> $FILE
-    echo 'gpgcheck=1 ' >> $FILE
-    echo 'repo_gpgcheck=0 ' >> $FILE
-    echo 'gpgkey=https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/-/raw/master/pub.gpg ' >> $FILE
-    echo 'metadata_expire=1h ' >> $FILE
+    sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc &> /dev/null
+    echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/vscode.repo &> /dev/null
    }
   set_proxy(){
     COUNTRY=`curl -s ifconfig.io/country_code`
@@ -198,7 +186,10 @@
   base_config(){
     sed 's/^# %wheel/%wheel/' -i /etc/sudoers
     if [ "$DISABLESELINUX" -eq "1" ] ; then
-      sed -i -e "s/^SELINUX=.*/SELINUX=disabled/" /etc/selinux/config ; setenforce 0
+      if [ "$(selinuxenabled && echo 0)" -eq "0" ] ; then
+        sed -i -e "s/^SELINUX=.*/SELINUX=disabled/" /etc/selinux/config &> /dev/null
+        setenforce 0 &> /dev/null
+      fi
     fi
     BASHCONFIG_RAW='
     COLF0=$(tput setaf 0)
@@ -281,7 +272,7 @@
     echo "$BASHCONFIG" | sed "s/^[[:space:]]*//g" > /root/.bashrc.d/mybash
     echo '. /root/.bashrc.d/mybash' | sudo tee /root/.bashrc >/dev/null
     if [ "$GUI" == "1" ] ; then
-      if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
+      if [ $(echo $THEUSER | grep -cE "^$") -eq 0 ] ; then 
       mkdir -p /home/$THEUSER/.bashrc.d/
       echo "$BASHCONFIG" | sed "s/^[[:space:]]*//g" > /home/$THEUSER/.bashrc.d/mybash
       fi
@@ -359,7 +350,7 @@
     GROMITCFG=`echo "$GROMITCFG_RAW" | sed "s/^[[:space:]]*//g"`
     if [ "$GUI" == "1" ] ; then
       # config ssh client sample
-      if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
+      if [ $(echo $THEUSER | grep -cE "^$") -eq 0 ] ; then 
         mkdir -p "/home/$THEUSER/.ssh/"
         echo "$SSH_SAMPLE" > "/home/$THEUSER/.ssh/ssh.sample.config"
         # configure network manager 
@@ -451,9 +442,11 @@
     dnf_pkg_func ${MMEDIA_BASE[@]} $MMEXCLUDES
     dnf_grp_func ${SRV_BASE_GRP[@]}
     dnf_grp_func ${GUI_GRP_BASE[@]}
-    dnf install -y \
-        $(curl -s https://api.github.com/repos/VSCodium/vscodium/releases/latest |\
-        grep "browser_download_url"   | cut -d '"' -f 4   | grep "x86_64.rpm"   | head -n 1)
+    # curl -sL $(curl -s https://api.github.com/repos/VSCodium/vscodium/releases/latest |\
+    # grep "browser_download_url"   | cut -d '"' -f 4   | grep "x86_64.rpm"   | head -n 1) -o /tmp/vscodium.x86_64.rpm
+    # dnf install -y /tmp/vscodium.x86_64.rpm
+    curl -sL 'https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64' -o /tmp/vscode.x86_64.rpm
+    dnf install -y /tmp/vscode.x86_64.rpm
    }
   admintools(){
     # installing dbeaver-ce
@@ -481,7 +474,7 @@
       chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
     fi
     # configuring docker kuber
-      if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
+      if [ $(echo $THEUSER | grep -cE "^$") -eq 0 ] ; then 
       usermod -a -G docker "$THEUSER"
       mkdir -p /home/$THEUSER/.docker
       echo '{"psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Status}}\\t{{.Names}}"}' > /home/$THEUSER/.docker/config.json
@@ -520,18 +513,18 @@
       echo -e 'user = "root"' >> /etc/libvirt/qemu.conf
       echo -e 'group = "root"' >> /etc/libvirt/qemu.conf
     fi
-    if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
+    if [ $(echo $THEUSER | grep -cE "^$") -eq 0 ] ; then 
       usermod -a -G libvirt "$THEUSER"
     fi
     NETS=`virsh net-list`
     if [ "`echo "$NETS" | grep -ic Default-Isolate`" -lt "1" ] ; then
       echo '<network>' > /tmp/virtnet1.xml
       echo '<name>Default-Isolate</name>' >> /tmp/virtnet1.xml
-      echo '<domain name='Isolate'/>' >> /tmp/virtnet1.xml
-      echo '<ip address='10.124.1.2' netmask='255.255.255.0'>' >> /tmp/virtnet1.xml
+      echo '<domain name="Isolate"/>' >> /tmp/virtnet1.xml
+      echo '<ip address="10.124.1.2" netmask="255.255.255.0">' >> /tmp/virtnet1.xml
       echo '</ip>' >> /tmp/virtnet1.xml
       echo '</network>' >> /tmp/virtnet1.xml
-      virsh net-define --file "./config_files/virt-net-default-isolate.xml"
+      virsh net-define --file /tmp/virtnet1.xml
       virsh net-autostart --network Default-Isolate
       virsh net-start --network Default-Isolate
     fi
@@ -539,10 +532,10 @@
       echo '<network> ' > /tmp/virtnet2.xml
       echo '  <name>network</name> ' >> /tmp/virtnet2.xml
       echo '  <forward mode="nat"/> ' >> /tmp/virtnet2.xml
-      echo '  <domain name='Default-NAT'/> ' >> /tmp/virtnet2.xml
-      echo '  <ip address='10.25.1.2' netmask='255.255.255.0'> ' >> /tmp/virtnet2.xml
+            echo '  <domain name="Default-NAT"/> ' >> /tmp/virtnet2.xml
+      echo '  <ip address="10.25.1.2" netmask="255.255.255.0"> ' >> /tmp/virtnet2.xml
       echo '    <dhcp> ' >> /tmp/virtnet2.xml
-      echo '      <range start='10.25.1.128' end='10.25.1.254'/> ' >> /tmp/virtnet2.xml
+      echo '      <range start="10.25.1.128" end="10.25.1.254"/> ' >> /tmp/virtnet2.xml
       echo '    </dhcp> ' >> /tmp/virtnet2.xml
       echo '  </ip> ' >> /tmp/virtnet2.xml
       echo '</network> ' >> /tmp/virtnet2.xml
@@ -552,7 +545,7 @@
     fi
    }
   post_script(){
-    if [ $(echo $THEUSER | grep -eE "^$") -eq 0 ] ; then 
+    if [ $(echo $THEUSER | grep -cE "^$") -eq 0 ] ; then 
     rm -rf "/home/$THEUSER/.config/autostart/"
     rm -rf  /home/$THEUSER/.local/state/wireplumber/
     usermod -a -G wireshark "$THEUSER"
@@ -575,22 +568,37 @@
    }
 ############################# RUNNING SCRIPT FUNCTIONS
   # PHASE 0
-    check_fedora
-    define_bash_color
-    base_config
-    set_proxy
-    define_repo_base
-    define_repo_gui
+    echo RUNNING "check_fedora"  >> "$LOGFILE"
+    check_fedora &>> "$LOGFILE"
+    echo RUNNING "define_bash_color"  >> "$LOGFILE"
+    define_bash_color &>> "$LOGFILE"
+    echo RUNNING "base_config"  >> "$LOGFILE"
+    base_config &>> "$LOGFILE"
+    echo RUNNING "set_proxy"  >> "$LOGFILE"
+    set_proxy &>> "$LOGFILE"
+    echo RUNNING "define_repo_base"  >> "$LOGFILE"
+    define_repo_base &>> "$LOGFILE"
+    echo RUNNING "define_repo_gui"  >> "$LOGFILE"
+    define_repo_gui &>> "$LOGFILE"
   # PHASE 1
-    pre_install
-    update_hw
-    update_sw
-    define_packages
-    install_packages
+    echo RUNNING "pre_install" >> "$LOGFILE"
+    pre_install &>> "$LOGFILE"
+    echo RUNNING "update_hw" >> "$LOGFILE"
+    update_hw &>> "$LOGFILE"
+    echo RUNNING "update_sw" >> "$LOGFILE"
+    update_sw &>> "$LOGFILE"
+    echo RUNNING "define_packages" >> "$LOGFILE"
+    define_packages &>> "$LOGFILE"
+    echo RUNNING "install_packages" >> "$LOGFILE"
+    install_packages &>> "$LOGFILE"
   # PHASE 2
-    admintools
-    nettools
-    kvmtools
+    echo RUNNING "admintools" >> "$LOGFILE"
+    admintools &>> "$LOGFILE"
+    echo RUNNING "nettools" >> "$LOGFILE"
+    nettools &>> "$LOGFILE"
+    echo RUNNING "kvmtools" >> "$LOGFILE"
+    kvmtools &>> "$LOGFILE"
   # PHASE 3
-    post_script
+    echo RUNNING "post_script" >> "$LOGFILE"
+    post_script &>> "$LOGFILE"    
 #
