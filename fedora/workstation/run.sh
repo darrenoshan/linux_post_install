@@ -1,19 +1,17 @@
 #!/usr/bin/env bash
+PS4='[$(date "+%Y/%m/%d %H:%M:%S")] $LINENO: ' ; set -x
 
 ############################# SCRIPT INIT
-  # PS4='$LINENO: '
-  # set -x
   RUNCMD=`realpath $0`
   RUNDIR=`dirname $RUNCMD`
   cd "$RUNDIR"
   LOGDIR="$RUNDIR/temp"
-  RUNTIME=`jdate +%Y%m%d%H%M%S 2> /dev/null || date +%Y%m%d%H%M%S`
+  RUNTIME=`jdate "+%Y%m%d%H%M%S" 2> /dev/null || date "+%Y%m%d%H%M%S"`
   LOGFILE="$LOGDIR/$RUNTIME.log"
   ERRFILE="$LOGDIR/$RUNTIME.err"
   mkdir -p "$LOGDIR"
   touch "$LOGFILE"
-  #  exec > >(tee -a "$LOGFILE") 2>&1
-
+  exec &>  >(tee -a "$LOGFILE")
   THEUSER="$USERNAME"
   DISABLESELINUX=1
   GUI=1
@@ -270,9 +268,10 @@
     BASHCONFIG=`echo "$BASHCONFIG_RAW" | sed "s/^[[:space:]]*//g"`
     mkdir -p /root/.bashrc.d/
     echo "$BASHCONFIG" | sed "s/^[[:space:]]*//g" > /root/.bashrc.d/mybash
-    echo '. /root/.bashrc.d/mybash' | sudo tee /root/.bashrc >/dev/null
+    echo '. /root/.bashrc.d/mybash' | sudo tee -a /root/.bashrc >/dev/null
     if [ "$GUI" == "1" ] ; then
       if [ $(echo $THEUSER | grep -cE "^$") -eq 0 ] ; then 
+      echo '. /home/$THEUSER/.bashrc.d/mybash' | sudo tee -a /root/.bashrc >/dev/null
       mkdir -p /home/$THEUSER/.bashrc.d/
       echo "$BASHCONFIG" | sed "s/^[[:space:]]*//g" > /home/$THEUSER/.bashrc.d/mybash
       fi
@@ -377,21 +376,21 @@
     }
   update_sw(){
     dnf update --best --allowerasing -y --refresh
-    dnf install -y -q pip python3-pip
+    dnf install -y pip python3-pip
     pip install --upgrade pip
    }
   dnf_pkg_func(){
-    dnf       install -y -q --skip-unavailable --skip-broken --allowerasing $@
+    dnf       install -y --skip-unavailable --skip-broken --allowerasing $@
    }
   dnf_grp_func(){
-    dnf group install -y -q --skip-unavailable --skip-broken --allowerasing $@
+    dnf group install -y --skip-unavailable --skip-broken --allowerasing $@
    }
   define_packages(){
     # -- BASE
       SRV_BASE[0]="aria2 bc bash-color-prompt bash-completion bind-utils bwm-ng chrony cronie cryptsetup curl fdupes firewalld ftp GeoIP git htop hping3 iftop iotop iputils"
       SRV_BASE[1]="jcal jdupes jq lshw lsof mtr mmv netstat-nat net-tools NetworkManager NetworkManager-tui ngrep nload nmap nmap-ncat openssl p7zip p7zip-plugins pip plocate"
       SRV_BASE[2]="policycoreutils-python-utils procps procps-ng psmisc pwgen python3-devel python3-pip qemu-img qrencode setroubleshoot-server screen sshfs sshuttle sysstat" 
-      SRV_BASE[3]="tcpdump telnet tmux traceroute unar unrar unzip util-linux vim wget whois wireguard-tools wireshark-cli"
+      SRV_BASE[3]="tcpdump telnet tmux traceroute unar unrar unzip util-linux vim wget whois wireguard-tools wireshark-cli input-leap"
       SRV_BASE_GRP[0]="core standard"
       ADMIN_TOOLS[0]="mysql mycli"
       DOCKER[0]="moby-engine sen podman podman-compose podman-tui"
@@ -400,7 +399,7 @@
       KUBER[0]="kubernetes-client helm "
       GUI_BASE[0]="nautilus file-roller-nautilus gnome-terminal-nautilus tilix-nautilus chromium dconf dconf-editor engrampa evince fedora-workstation-repositories filezilla firefox geany gedit google-chrome-stable gparted ghostscript"
       GUI_BASE[1]="gnome-extensions-app gnome-shell-extension-appindicator gnome-shell-extension-apps-menu gnome-shell-extension-dash-to-dock gnome-shell-extension-dash-to-panel gnome-shell-extension-just-perfection "
-      GUI_BASE[2]="gnome-terminal gnome-tweaks tilix mate-terminal tigervnc tor torbrowser-launcher qbittorrent octave "
+      GUI_BASE[2]="gnome-terminal gnome-tweaks tilix mate-terminal tigervnc tor torbrowser-launcher qbittorrent "
       GUI_BASE[3]="minder leafpad nomacs openvpn putty remmina remmina-plugins-rdp telegram-desktop virt-manager virt-manager-common obs-studio "
       GUI_BASE[4]="NetworkManager-config-connectivity-fedora NetworkManager-fortisslvpn NetworkManager-fortisslvpn-gnome "
       GUI_BASE[5]="NetworkManager-l2tp NetworkManager-l2tp-gnome NetworkManager-openconnect NetworkManager-openconnect-gnome NetworkManager-openvpn NetworkManager-openvpn-gnome"
@@ -435,18 +434,21 @@
       MMEDIA_EXTRA[1]="simplescreenrecorder easytag openshot mplayer sound-juicer rhythmbox gaupol " 
    }
   install_packages(){
-    dnf clean all
     dnf makecache
     dnf_pkg_func ${SRV_BASE[@]}
     dnf_pkg_func ${GUI_BASE[@]}
     dnf_pkg_func ${MMEDIA_BASE[@]} $MMEXCLUDES
     dnf_grp_func ${SRV_BASE_GRP[@]}
     dnf_grp_func ${GUI_GRP_BASE[@]}
-    # curl -sL $(curl -s https://api.github.com/repos/VSCodium/vscodium/releases/latest |\
-    # grep "browser_download_url"   | cut -d '"' -f 4   | grep "x86_64.rpm"   | head -n 1) -o /tmp/vscodium.x86_64.rpm
-    # dnf install -y /tmp/vscodium.x86_64.rpm
-    curl -sL 'https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64' -o /tmp/vscode.x86_64.rpm
-    dnf install -y /tmp/vscode.x86_64.rpm
+    # if ! which codium &>/dev/null ; then
+    #   curl -sL $(curl -s https://api.github.com/repos/VSCodium/vscodium/releases/latest |\
+    #   grep "browser_download_url"   | cut -d '"' -f 4   | grep "x86_64.rpm"   | head -n 1) -o /tmp/vscodium.x86_64.rpm
+    #   dnf install -y /tmp/vscodium.x86_64.rpm
+    # fi
+    if ! which code &>/dev/null ; then
+      curl -sL 'https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64' -o /tmp/vscode.x86_64.rpm
+      dnf install -y /tmp/vscode.x86_64.rpm
+    fi
    }
   admintools(){
     # installing dbeaver-ce
@@ -462,7 +464,7 @@
       # https://github.com/docker/compose/releases/latest
       GH_DP_COMPOSE=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" | jq -r '.assets[] | "\(.name) \(.browser_download_url)"')
       DLND_URL=$(echo "$GH_DP_COMPOSE" | grep "linux-x86_64 " | awk '{print $2}')
-      curl -sSL "$DLND_URL" -o /usr/local/lib/docker/cli-plugins/docker-compose
+      echo curl -sSL "$DLND_URL" -o /usr/local/lib/docker/cli-plugins/docker-compose
       chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
     fi
     # installing docker-buildx
@@ -563,42 +565,26 @@
       systemctl enable --now  $SRV &> /dev/null
     done
     dnf remove "${REMOVE[@]}" -y
-    dnf clean all
     rpm --rebuilddb
    }
 ############################# RUNNING SCRIPT FUNCTIONS
   # PHASE 0
-    echo RUNNING "check_fedora"  >> "$LOGFILE"
-    check_fedora &>> "$LOGFILE"
-    echo RUNNING "define_bash_color"  >> "$LOGFILE"
-    define_bash_color &>> "$LOGFILE"
-    echo RUNNING "base_config"  >> "$LOGFILE"
-    base_config &>> "$LOGFILE"
-    echo RUNNING "set_proxy"  >> "$LOGFILE"
-    set_proxy &>> "$LOGFILE"
-    echo RUNNING "define_repo_base"  >> "$LOGFILE"
-    define_repo_base &>> "$LOGFILE"
-    echo RUNNING "define_repo_gui"  >> "$LOGFILE"
-    define_repo_gui &>> "$LOGFILE"
+    check_fedora
+    define_bash_color
+    base_config
+    set_proxy
+    define_repo_base
+    define_repo_gui
   # PHASE 1
-    echo RUNNING "pre_install" >> "$LOGFILE"
-    pre_install &>> "$LOGFILE"
-    echo RUNNING "update_hw" >> "$LOGFILE"
-    update_hw &>> "$LOGFILE"
-    echo RUNNING "update_sw" >> "$LOGFILE"
-    update_sw &>> "$LOGFILE"
-    echo RUNNING "define_packages" >> "$LOGFILE"
-    define_packages &>> "$LOGFILE"
-    echo RUNNING "install_packages" >> "$LOGFILE"
-    install_packages &>> "$LOGFILE"
+    pre_install
+    update_hw
+    update_sw
+    define_packages
+    install_packages
   # PHASE 2
-    echo RUNNING "admintools" >> "$LOGFILE"
-    admintools &>> "$LOGFILE"
-    echo RUNNING "nettools" >> "$LOGFILE"
-    nettools &>> "$LOGFILE"
-    echo RUNNING "kvmtools" >> "$LOGFILE"
-    kvmtools &>> "$LOGFILE"
+    admintools
+    nettools
+    kvmtools
   # PHASE 3
-    echo RUNNING "post_script" >> "$LOGFILE"
-    post_script &>> "$LOGFILE"    
+    post_script
 #
