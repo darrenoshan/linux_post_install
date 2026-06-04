@@ -262,7 +262,7 @@ PS4='[$(date "+%Y/%m/%d %H:%M:%S")] $LINENO: ' ; set -x
     systemctl daemon-reload
     systemctl restart docker;
     }
-    rm -rf ~/.cache/mozilla/ ~/.mozilla/
+    rm -rf ~/.config/mozilla ~/.cache/mozilla/ ~/.mozilla/
     rm -rf ~/.cache/thumbnails/*
     '
     BASHCONFIG=`echo "$BASHCONFIG_RAW" | sed "s/^[[:space:]]*//g"`
